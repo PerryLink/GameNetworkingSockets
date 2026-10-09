@@ -2099,7 +2099,15 @@ void CSteamNetworkingICESession::STUNRequestCallback_AllocateRelay( const RecvST
         return;
     }
 
-    // Try the next TURN server.
+    // Try the next TURN server.  The realm and nonce came from the server that issued them, so they
+    // have to be dropped before the next server is asked.  Otherwise the Allocate we send carries the
+    // previous server's realm and key, the 401 that comes back is read as a wrong-credentials answer
+    // rather than a challenge (see the m_strTURNRealm check in the 401 handling above), and relay is
+    // marked failed.  m_arrTURNKey is left alone: it is only used while m_strTURNRealm is set, and it
+    // is recomputed from the new realm when the next server challenges.
+    pIntf->m_strTURNRealm.clear();
+    pIntf->m_strTURNNonce.clear();
+
     pIntf->QueueAllocateRequest( m_vecTURNServers[nNextTURNServerIdx], &CSteamNetworkingICESession::STUNRequestCallback_AllocateRelay, m_nEncoding );
 }
 
